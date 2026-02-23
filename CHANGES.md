@@ -1,4 +1,8 @@
 
+- Make block quotes have their start text position at the position of
+  the first block quote marker. Previously it coincided with the start
+  position of the quoted block. Thanks to Paul-Elliot Anglès d'Auriac
+  for the fix (#29).
 
 - `cmarkit` tool: enable file completion on file arguments.
 
