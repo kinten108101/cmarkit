@@ -315,15 +315,15 @@ let heading c h =
   C.string c "</h"; C.string c level; C.string c ">\n"
 
 let paragraph c p =
-  C.string c "<p>"; C.inline c (Block.Paragraph.inline p); C.string c "</p>\n"
+  C.string c "<p>"; C.inline c (Block.Paragraph.inline p); C.string c "</p>\n" 
 
 let item_block ~tight c = function
 | Block.Blank_line _ -> ()
-| Block.Paragraph (p, _) when tight -> C.inline c (Block.Paragraph.inline p)
+| Block.Block_Paragraph (p, _) when tight -> C.inline c (Block.Paragraph.inline p)
 | Block.Blocks (bs, _) ->
     let rec loop c add_nl = function
     | Block.Blank_line _ :: bs -> loop c add_nl bs
-    | Block.Paragraph (p,_) :: bs when tight ->
+    | Block.Block_Paragraph (p,_) :: bs when tight ->
         C.inline c (Block.Paragraph.inline p); loop c true bs
     | b :: bs -> (if add_nl then C.byte c '\n'); C.block c b; loop c false bs
     | [] -> ()
@@ -431,10 +431,10 @@ let block c = function
 | Block.Block_quote (bq, _) -> block_quote c bq; true
 | Block.Blocks (bs, _) -> List.iter (C.block c) bs; true
 | Block.Code_block (cb, _) -> code_block c cb; true
-| Block.Heading (h, _) -> heading c h; true
+| Block.Block_Heading (h, _) -> heading c h; true
 | Block.Html_block (h, _) -> html_block c h; true
 | Block.List (l, _) -> list c l; true
-| Block.Paragraph (p, _) -> paragraph c p; true
+| Block.Block_Paragraph (p, _) -> paragraph c p; true
 | Block.Thematic_break (_, _) -> thematic_break c; true
 | Block.Ext_math_block (cb, _) -> math_block c cb; true
 | Block.Ext_table (t, _) -> table c t; true

@@ -643,11 +643,11 @@ module Block = struct
   | Block_quote of Block_quote.t node
   | Blocks of t list node
   | Code_block of Code_block.t node
-  | Heading of Heading.t node
+  | Block_Heading of Heading.t node
   | Html_block of Html_block.t node
   | Link_reference_definition of Link_definition.t node
   | List of List'.t node
-  | Paragraph of Paragraph.t node
+  | Block_Paragraph of Paragraph.t node
   | Thematic_break of Thematic_break.t node
 
   let empty = Blocks ([], Meta.none)
@@ -745,15 +745,15 @@ module Block = struct
   let ext_none _ = invalid_arg err_unknown
   let meta ?(ext = ext_none) = function
   | Blank_line (_, m) | Block_quote (_, m) | Blocks (_, m) | Code_block (_, m)
-  | Heading (_, m) | Html_block (_, m) | Link_reference_definition (_, m)
-  | List (_, m) | Paragraph (_, m) | Thematic_break (_, m)
+  | Block_Heading (_, m) | Html_block (_, m) | Link_reference_definition (_, m)
+  | List (_, m) | Block_Paragraph (_, m) | Thematic_break (_, m)
   | Ext_math_block (_, m) | Ext_table (_, m)
   | Ext_footnote_definition (_, m) -> m
   | b -> ext b
 
   let rec normalize ?(ext = ext_none) = function
-  | Blank_line _ | Code_block _ | Heading _ | Html_block _
-  | Link_reference_definition _ | Paragraph _ | Thematic_break _
+  | Blank_line _ | Code_block _ | Block_Heading _ | Html_block _
+  | Link_reference_definition _ | Block_Paragraph _ | Thematic_break _
   | Blocks ([], _) | Ext_math_block _ | Ext_table _ as b -> b
   | Block_quote (b, m) ->
       let b = { b with block = normalize ~ext b.block } in
@@ -780,8 +780,8 @@ module Block = struct
   let rec defs
       ?(ext = fun b defs -> invalid_arg err_unknown) ?(init = Label.Map.empty)
     = function
-    | Blank_line _ | Code_block _ | Heading _ | Html_block _
-    | Paragraph _ | Thematic_break _
+    | Blank_line _ | Code_block _ | Block_Heading _ | Html_block _
+    | Block_Paragraph _ | Thematic_break _
     | Ext_math_block _ | Ext_table _ -> init
     | Block_quote (b, _) -> defs ~ext ~init (Block_quote.block b)
     | Blocks (bs, _) -> List.fold_left (fun init b -> defs ~ext ~init b) init bs
@@ -2063,11 +2063,11 @@ module Block_struct = struct
   | Block_quote of Layout.indent * line_span (* loc of initial marker *) * t list
   | Blank_line of space_pad * line_span
   | Code_block of code_block
-  | Heading of heading
+  | Block_Heading of heading
   | Html_block of html_block
   | List of list'
   | Linkref_def of Link_definition.t node
-  | Paragraph of paragraph
+  | Block_Paragraph of paragraph
   | Thematic_break of Layout.indent * line_span (* including trailing blanks *)
   | Ext_table of Layout.indent * (line_span * line_span (* trail blanks *)) list
   | Ext_footnote of Layout.indent * (Label.t * Label.t option) * t list
@@ -2106,7 +2106,7 @@ module Block_struct = struct
       let first = last_content + 1 and last = p.current_line_last_char in
       current_line_span p ~first ~last
     in
-    Heading (`Atx { indent; level; after_open; heading; layout_after })
+    Block_Heading (`Atx { indent; level; after_open; heading; layout_after })
 
   let setext_heading p ~indent ~level ~last_underline heading_lines =
     let u = current_line_span p ~first:p.current_char ~last:last_underline in
@@ -2115,7 +2115,7 @@ module Block_struct = struct
       current_line_span p ~first ~last
     in
     let underline = indent, u, blanks in
-    Heading (`Setext {level; heading_lines; underline})
+    Block_Heading (`Setext {level; heading_lines; underline})
 
   let indented_code_block p = (* Has a side-effect on [p] *)
     let pad, first = accept_code_indent p ~count:4 in
@@ -2146,12 +2146,12 @@ module Block_struct = struct
   let paragraph p ~start =
     let last = p.current_line_last_char in
     let maybe_ref = Match.could_be_link_reference_definition p.i ~last ~start in
-    Paragraph { maybe_ref; lines = [current_line_span p ~first:start ~last]}
+    Block_Paragraph { maybe_ref; lines = [current_line_span p ~first:start ~last]}
 
   let add_paragraph_line p ~indent_start par bs =
     let first = indent_start and last = p.current_line_last_char in
     let lines = current_line_span p ~first ~last :: par.lines in
-    Paragraph { par with lines } :: bs
+    Block_Paragraph { par with lines } :: bs
 
   let table_row p ~first ~last =
     current_line_span p ~first ~last,
@@ -2254,7 +2254,7 @@ module Block_struct = struct
         match parse_link_reference_definition p ls with
         | None ->
             (* Link defs can't interrupt a paragraph so we are good now. *)
-            Paragraph { maybe_ref = false; lines = List.rev ls } :: prevs
+            Block_Paragraph { maybe_ref = false; lines = List.rev ls } :: prevs
         | Some (ld, ls) -> loop p (Linkref_def ld :: prevs) ls
     in
     loop p prevs (List.rev lines)
@@ -2272,12 +2272,12 @@ module Block_struct = struct
     loop [] lines bs
 
   let close_paragraph p par bs =
-    if not par.maybe_ref then Paragraph par :: bs else
+    if not par.maybe_ref then Block_Paragraph par :: bs else
     maybe_add_link_reference_definitions p par.lines bs
 
   let rec close_last_block p = function
   | Code_block (`Indented ls) :: bs -> close_indented_code_block p ls bs
-  | Paragraph par :: bs -> close_paragraph p par bs
+  | Block_Paragraph par :: bs -> close_paragraph p par bs
   | List l :: bs -> close_list p l bs
   | Ext_footnote (i, l, blocks) :: bs -> close_footnote p i l blocks bs
   | bs -> bs
@@ -2329,12 +2329,12 @@ module Block_struct = struct
   | Block_quote (indent, marker, bq) :: bs ->
       Block_quote (indent, marker, end_doc p bq) :: bs
   | List list :: bs -> close_list p list bs
-  | Paragraph par :: bs -> close_paragraph p par bs
+  | Block_Paragraph par :: bs -> close_paragraph p par bs
   | Code_block (`Indented ls) :: bs -> close_indented_code_block p ls bs
   | Code_block (`Fenced f) :: bs -> end_doc_close_fenced_code_block p f bs
   | Html_block html :: bs -> end_doc_close_html p html bs
   | Ext_footnote (i, l, blocks) :: bs -> close_footnote p i l blocks bs
-  | (Thematic_break _ | Heading _ | Blank_line _ | Linkref_def _
+  | (Thematic_break _ | Block_Heading _ | Blank_line _ | Linkref_def _
     | Ext_table _ ) :: _ | [] as bs -> bs
 
   (* Adding lines to blocks *)
@@ -2509,7 +2509,7 @@ module Block_struct = struct
     | Setext_underline_line (level, last_underline) ->
         let bs = close_paragraph p par bs in
         begin match bs with
-        | Paragraph { lines; _ } :: bs ->
+        | Block_Paragraph { lines; _ } :: bs ->
             setext_heading p ~indent ~level ~last_underline lines :: bs
         | bs -> paragraph p ~start:indent_start :: bs
         end
@@ -2575,7 +2575,7 @@ module Block_struct = struct
           Html_block { end_cond = None; html = l :: b.html } :: bs
 
   let rec try_lazy_continuation p ~indent_start = function
-  | Paragraph par :: bs -> Some (add_paragraph_line p ~indent_start par bs)
+  | Block_Paragraph par :: bs -> Some (add_paragraph_line p ~indent_start par bs)
   | Block_quote (indent, marker, bq) :: bs ->
       begin match try_lazy_continuation p ~indent_start bq with
       | None -> None
@@ -2682,8 +2682,8 @@ module Block_struct = struct
         add_open_blocks_with_line_class p ~indent ~indent_start bs ltype
 
   and add_line p = function
-  | Paragraph par :: bs -> try_add_to_paragraph p par bs
-  | ((Thematic_break _ | Heading _ | Blank_line _ | Linkref_def _) :: _)
+  | Block_Paragraph par :: bs -> try_add_to_paragraph p par bs
+  | ((Thematic_break _ | Block_Heading _ | Blank_line _ | Linkref_def _) :: _)
   | [] as bs -> add_open_blocks p bs
   | List list :: bs -> try_add_to_list_item p list bs
   | Code_block (`Indented ls) :: bs -> try_add_to_indented_code_block p ls bs
@@ -2802,7 +2802,7 @@ let block_struct_to_heading p = function
     | false -> None
     | true -> Some (`Auto (Inline.id ~buf:p.buf inline))
     in
-    Block.Heading ({layout; level; inline; id}, meta)
+    Block.Block_Heading ({layout; level; inline; id}, meta)
 | `Setext { Block_struct.level; heading_lines; underline } ->
     let (leading_indent, trailing_blanks), inline =
       Inline_struct.parse p heading_lines
@@ -2823,7 +2823,7 @@ let block_struct_to_heading p = function
     | false -> None
     | true -> Some (`Auto (Inline.id ~buf:p.buf inline))
     in
-    Block.Heading ({ layout = `Setext layout; level; inline; id }, meta)
+    Block.Block_Heading ({ layout = `Setext layout; level; inline; id }, meta)
 
 let block_struct_to_html_block p (b : Block_struct.html_block) =
   let last = List.hd b.html in
@@ -2837,7 +2837,7 @@ let block_struct_to_paragraph p par =
   let layout, inline = Inline_struct.parse p par.Block_struct.lines in
   let leading_indent, trailing_blanks = layout in
   let meta = Inline.meta inline in
-  Block.Paragraph ({ leading_indent; inline; trailing_blanks }, meta)
+  Block.Block_Paragraph ({ leading_indent; inline; trailing_blanks }, meta)
 
 let block_struct_to_thematic_break p indent span =
   let layout, meta = (* not layout because of loc *) clean_raw_span p span in
@@ -2968,10 +2968,10 @@ and block_struct_to_block p = function
 | Block_struct.Block_quote (ind, marker, bs) ->
     block_struct_to_block_quote p ind marker bs
 | Block_struct.List list -> block_struct_to_list p list
-| Block_struct.Paragraph par -> block_struct_to_paragraph p par
+| Block_struct.Block_Paragraph par -> block_struct_to_paragraph p par
 | Block_struct.Thematic_break (i, br) -> block_struct_to_thematic_break p i br
 | Block_struct.Code_block cb -> block_struct_to_code_block p cb
-| Block_struct.Heading h -> block_struct_to_heading p h
+| Block_struct.Block_Heading h -> block_struct_to_heading p h
 | Block_struct.Html_block html -> block_struct_to_html_block p html
 | Block_struct.Blank_line (pad, span) -> block_struct_to_blank_line p pad span
 | Block_struct.Linkref_def r -> Block.Link_reference_definition r
@@ -3077,12 +3077,12 @@ module Mapper = struct
       | Blank_line _ | Code_block _ | Html_block _
       | Link_reference_definition _ | Thematic_break _
       | Ext_math_block _ as b -> Some b
-      | Heading (h, meta) ->
+      | Block_Heading (h, meta) ->
           let inline = match map_inline m (Block.Heading.inline h) with
           | None -> (* Can be empty *) Inline.Inlines ([], Meta.none)
           | Some i -> i
           in
-          Some (Heading ({ h with inline}, meta))
+          Some (Block_Heading ({ h with inline}, meta))
       | Block_quote (b, meta) ->
           let block = match map_block m b.block with
           | None -> (* Can be empty *) Blocks ([], Meta.none) | Some b -> b
@@ -3098,9 +3098,9 @@ module Mapper = struct
           in
           (match List.filter_map (map_list_item m) l.items with
           | [] -> None | items -> Some (List ({ l with items }, meta)))
-      | Paragraph (p, meta) ->
+      | Block_Paragraph (p, meta) ->
           let* inline = map_inline m (Paragraph.inline p) in
-          Some (Paragraph ({ p with inline }, meta))
+          Some (Block_Paragraph ({ p with inline }, meta))
       | Ext_table (t, meta) ->
           let map_col m (i, layout) = match map_inline m i with
           | None -> (Inline.empty, layout) | Some i -> (i, layout)
@@ -3182,7 +3182,7 @@ module Folder = struct
       match b with
       | Blank_line _ | Code_block _ | Html_block _
       | Link_reference_definition _ | Thematic_break _ | Ext_math_block _ -> acc
-      | Heading (h, _) -> fold_inline f acc (Block.Heading.inline h)
+      | Block_Heading (h, _) -> fold_inline f acc (Block.Heading.inline h)
       | Block_quote (bq, _) -> fold_block f acc bq.block
       | Blocks (bs, _) -> List.fold_left (fold_block f) acc bs
       | List (l, _) ->
@@ -3190,7 +3190,7 @@ module Folder = struct
             fold_block m acc (Block.List_item.block i)
           in
           List.fold_left (fold_list_item f) acc l.items
-      | Paragraph (p, _) -> fold_inline f acc (Block.Paragraph.inline p)
+      | Block_Paragraph (p, _) -> fold_inline f acc (Block.Paragraph.inline p)
       | Ext_table (t, _) ->
           let fold_row acc ((r, _), _) = match r with
           | (`Header is | `Data is) ->

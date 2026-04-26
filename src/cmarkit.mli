@@ -1196,13 +1196,13 @@ module Block : sig
   | Block_quote of Block_quote.t node
   | Blocks of t list node (** Splicing *)
   | Code_block of Code_block.t node
-  | Heading of Heading.t node
+  | Block_Heading of Heading.t node
   | Html_block of Html_block.t node
   | Link_reference_definition of Link_definition.t node
     (** {{:https://spec.commonmark.org/0.31.2/#link-reference-definitions}
         Link reference definitions}, kept for layout *)
   | List of List'.t node
-  | Paragraph of Paragraph.t node
+  | Block_Paragraph of Paragraph.t node
   | Thematic_break of Thematic_break.t node
     (** {{:https://spec.commonmark.org/0.31.2/#paragraphs}Thematic break} *)
   (** The CommonMark {{:https://spec.commonmark.org/0.31.2/#leaf-blocks}leaf}

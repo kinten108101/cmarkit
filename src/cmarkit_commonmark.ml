@@ -424,12 +424,12 @@ let block c = function
 | Block.Block_quote (b, _) -> block_quote c b; true
 | Block.Blocks (bs, _) -> List.iter (C.block c) bs; true
 | Block.Code_block (cb, _) -> code_block c cb; true
-| Block.Heading (h, _) -> heading c h; true
+| Block.Block_Heading (h, _) -> heading c h; true
 | Block.Html_block (h, _) -> html_block c h; true
 | Block.Link_reference_definition (ld, _) ->
     link_reference_definition c ld; true
 | Block.List (l, _) -> list c l; true
-| Block.Paragraph (p, _) -> paragraph c p; true
+| Block.Block_Paragraph (p, _) -> paragraph c p; true
 | Block.Thematic_break (t, _) -> thematic_break c t; true
 | Block.Ext_math_block (cb, _) -> code_block c cb; true
 | Block.Ext_table (t, _) -> table c t; true

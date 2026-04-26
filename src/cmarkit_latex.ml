@@ -415,10 +415,10 @@ let block c = function
 | Block.Block_quote (bq, _) -> block_quote c bq; true
 | Block.Blocks (bs, _) -> List.iter (C.block c) bs; true
 | Block.Code_block (cb, _) -> code_block c cb; true
-| Block.Heading (h, _) -> heading c h; true
+| Block.Block_Heading (h, _) -> heading c h; true
 | Block.Html_block (html, _) -> html_block c html; true
 | Block.List (l, _) -> list c l; true
-| Block.Paragraph (p, _) -> paragraph c p; true
+| Block.Block_Paragraph (p, _) -> paragraph c p; true
 | Block.Thematic_break _ -> thematic_break c; true
 | Block.Ext_math_block (cb, _)-> math_block c cb; true
 | Block.Ext_table (t, _)-> table c t; true
