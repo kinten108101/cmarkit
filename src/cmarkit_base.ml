@@ -26,6 +26,26 @@ let unsafe_get = String.unsafe_get
 
 module String_set = Set.Make (String)
 
+module Obj_extension = struct
+  module Obj = struct
+    include Obj
+
+    let repr_map = Hashtbl.create 0
+    and   id_seq = ref 0
+    
+    module Repr = struct
+      let id repr =
+        match Hashtbl.find repr_map repr with
+        | v -> v
+        | exception Not_found ->
+          let current_id = !id_seq in
+          Hashtbl.add repr_map repr current_id;
+          id_seq := current_id + 1;
+          current_id
+    end
+  end
+end
+
 (* Heterogeneous dictionaries *)
 
 module Dict = struct
@@ -36,6 +56,7 @@ module Dict = struct
       type _ id = ..
       module type ID = sig type t type _ id += Id : t id end
       type 'a t = (module ID with type t = 'a)
+      open Obj_extension      
 
       let make (type a) () : a t =
         (module struct type t = a type _ id += Id : t id end)
@@ -46,7 +67,7 @@ module Dict = struct
         match A.Id with B.Id -> Some Equal | _ -> None
 
       let uid (type a) ((module A) : a t) =
-        Obj.Extension_constructor.id (Obj.Extension_constructor.of_val A.Id)
+        Obj.Repr.id (Obj.repr A.Id)
     end
   end
 
